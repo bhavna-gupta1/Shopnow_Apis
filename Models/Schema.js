@@ -7,7 +7,10 @@ const productSchema = new schema({
     description:{type:String,require:true},
     category:{type:String,require:true},
     price:{type:Number,require:true},
-    image: {type: String,required: true}
+    image: {
+        data: Buffer, // Store image data as Buffer
+        contentType: String // Store image MIME type
+      }
 },{ timestamps: false });
 
 const categorySchema = new schema({

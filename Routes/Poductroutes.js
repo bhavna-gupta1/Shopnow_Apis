@@ -3,84 +3,57 @@ const express = require("express");
 const router = express.Router();
 const {Product} =require('../Models/Schema');
 const { jwtAuthMiddleware } = require("../jwt");
+const multer = require('multer');
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+// Multer storage configuration
+const storages = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, 'uploads/'); // Folder where uploaded images are stored
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + '.jpg'); // File naming convention (can be customized)
+    }
+  });
 
-// // post product API
-// router.post('/products',jwtAuthMiddleware,async(req,res)=>{
-//     try{
-//         const product_body = req.body;
-//         console.log(req.originalUrl)
-//         const productdata = new Product(product_body)
-//         const product_save = await productdata.save()
-//         res.status(200).json({ message: "Product added successfully", data:product_save});
-
-    
-//     }catch(err){
-//         res.status(500).json({message:'Internal server error'})
-//     }
-// })
-// // Get products api 
-// router.get('/products',async(req,res)=>{
-//     try{
-//       const all_product = await Product.find()
-//       if(!all_product){
-//         res.status(404).json({message:"Product not found"})
-//       }
-//       res.status(200).json(all_product)
-//     }catch(err){
-//         res.status(500).json()
-//     }
-// })
-// // POST many products
-// router.post('/insertmany_products',async(req,res)=>{
-//     try{
-//   const all_pro = req.body
-
-//   const many_product = await Product.insertMany(all_pro)
-//   console.log(`${many_product.length} product inserted`);
-//   res.status(200).json({ message: `${many_product.length} product inserted successfully` })
-//     }catch(err){
-// res.status(500).json({message:"Something went wrong"})
-//     }
-// })
-
-// // delete Products
-// router.delete('/deleteProduct',async(req,res)=>{
-//     try{
-//      const pro_id = req.body.id;
-//      console.log(pro_id)
-//      const del_pro = await Product.findByIdAndDelete(pro_id)
-//      if(!del_pro){
-//        return res.status(404).json({message:"product not found"})
-
-//      }res.status(200).json({message:"product deleted successsfully"})
-
-
-//     }catch(err){
-//    res.status(500).json({message:"Internal server error"})
-//     }
-// })
-// router.put("/update_pro",async(req,res)=>{
-//   try{
-// const up_product = req.body
-// const update_pro = await Product.findByIdAndUpdate(up_product.id,up_product,{new:true})
-// if(!update_pro){
-//   return req.status(400).json({message:"Product not found"})
-// }res.status(200).json({message:"Product uodated successfully",data:update_pro})
-//   }catch(err){
-//     res.status(500).json({message:"Internal server error"})
-//   }
-// })
 // Create a new product
-router.post('/products', async (req, res) => {
-  try {
-      const productData = req.body;
-      const newProduct = new Product(productData);
-      const savedProduct = await newProduct.save();
-      res.status(201).json(savedProduct);
-  } catch (err) {
-      res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
+router.post('/products', upload.single('image'), async (req, res) => {
+    try {
+      const { name, price, description, category } = req.body;
+      const { buffer, mimetype } = req.file; // Extract image buffer and MIME type
+  
+      // Create new product instance with image data
+      const product = new Product({
+        name,
+        price,
+        description,
+        category,
+        image: {
+          data: buffer, // Store image data as Buffer
+          contentType: mimetype // Store image MIME type
+        }
+      });
+  
+      // Save product to database
+      await product.save();
+  
+      // Respond with the saved product details
+      res.status(201).json({
+        message: 'Product created successfully',
+        product: {
+          name: product.name,
+          price: product.price,
+          description: product.description,
+          category: product.category,
+          image: `/uploads/${product._id}.jpg` // Example URL to access the image
+        }
+      });
+    } catch (error) {
+      console.error('Error saving product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
 // Get all products
 router.get('/products', async (req, res) => {
   try {
